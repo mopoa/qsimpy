@@ -1,5 +1,7 @@
+from multiprocessing import Process
 from env_creator import qsimpy_env_creator
 import os
+import sys
 import csv
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -71,6 +73,8 @@ class HeuristicSolutions:
 
                     arr_temp["total_completion_time"] += info["scheduled_qtask"].waiting_time + info["scheduled_qtask"].execution_time
                     arr_temp["rescheduling_count"] += info["scheduled_qtask"].rescheduling_count
+            sys.stdout.write("\033[F\033[K")
+            print(f"progress: {len(self.results)}%")
             self.env.qsp_env.run()
             # Final results of the episode
             self.results.append(arr_temp)
@@ -164,10 +168,15 @@ if __name__ == "__main__":
 
     # Run the heuristic solutions
     heuristics = HeuristicSolutions(env, num_episodes=100)
-    heuristics.run("greedy")
-    heuristics.run("random")
-    heuristics.run("round_robin")
-    heuristics.run("greedy_error")
+    methods = ['greedy','random','round_robin','greedy_error']
+    processes = [Process(target=heuristics.run , args=(m,)) for m in methods]
+    for i in range(len(methods)) : processes[i].start()
+    for i in range(len(methods)) : processes[i].join()
+    print("All Processes are done!!")
+    # heuristics.run("greedy")
+    # heuristics.run("random")
+    # heuristics.run("round_robin")
+    # heuristics.run("greedy_error")
 
     # Plot the results
     paths = [
