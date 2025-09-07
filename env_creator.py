@@ -1,6 +1,6 @@
 from gymenv_qsimpy import QSimPyEnv
 from env_wrapper import ScaleQSimPyEnv
-from gymnasium.experimental.wrappers import RescaleObservationV0, DtypeObservationV0
+from gymnasium.wrappers import RescaleObservation, DtypeObservation
 import numpy as np
 
 
@@ -16,12 +16,12 @@ def qsimpy_env_creator(env_config):
 
     if obs_filter is not None:
         if obs_filter == "rescale_-1_1":
-            env = RescaleObservationV0(
+            env = RescaleObservation(
                 env=env,
                 min_obs=np.ones((env.obs_dim,), dtype=np.float32) * -1,
                 max_obs=np.ones((env.obs_dim,), dtype=np.float32) * 1,
             )
-            env = DtypeObservationV0(env, dtype=np.float32)
+            env = DtypeObservation(env, dtype=np.float32)
 
     if reward_filter is not None:
         if reward_filter == "scale_2x":

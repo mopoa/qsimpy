@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium.core import Env
-from gymnasium.wrappers.normalize import NormalizeObservation, NormalizeReward
+from gymnasium.wrappers import NormalizeObservation, NormalizeReward
 import numpy as np
 from gymnasium.spaces import Box
 

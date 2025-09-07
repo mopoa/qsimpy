@@ -1,5 +1,4 @@
 import argparse
-
 import ray
 from ray import tune, air, train
 from ray.tune.registry import register_env
@@ -12,7 +11,7 @@ import os
 tf1, tf, tfv = try_import_tf()
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--num-cpus", type=int, default=0)
+parser.add_argument("--num-cpus", type=int, default=1)
 
 parser.add_argument(
     "--framework",
@@ -68,7 +67,7 @@ if __name__ == "__main__":
             v_min=-10.0,
             v_max=10.0,
         )
-        .rollouts(num_rollout_workers=8)
+        .env_runners(num_env_runners=8)
     )
 
     stop_config = {
