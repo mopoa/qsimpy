@@ -1,5 +1,5 @@
 from gymenv_qsimpy import QSimPyEnv
-from env_wrapper import ScaleQSimPyEnv
+from env_wrapper import ScaleQSimPyEnv , SerializableEnvWrapper
 from gymnasium.wrappers import RescaleObservation, DtypeObservation
 import numpy as np
 
@@ -10,7 +10,10 @@ def qsimpy_env_creator(env_config):
     config = config if config is not None else {}
     if dataset is None:
         raise ValueError("Dataset is not specified")
+    
     env = QSimPyEnv(dataset=dataset, config=config)
+    env = SerializableEnvWrapper(env)
+    
     obs_filter = env_config.pop("obs_filter", None)
     reward_filter = env_config.pop("reward_filter", None)
 
@@ -26,4 +29,6 @@ def qsimpy_env_creator(env_config):
     if reward_filter is not None:
         if reward_filter == "scale_2x":
             env = ScaleQSimPyEnv(env, scale=env_config.pop("reward_scale", 2))
+            
+    for i in range(10) : print(type(env))
     return env
