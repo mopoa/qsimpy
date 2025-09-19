@@ -3,6 +3,7 @@ from gymnasium.core import Env
 # Make sure these are here if not already
 from numpy.random import default_rng
 import simpy
+import numpy as np
 
 
 class ScaleQSimPyEnv(gym.RewardWrapper):
