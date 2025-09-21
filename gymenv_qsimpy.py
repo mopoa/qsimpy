@@ -67,6 +67,7 @@ class QSimPyEnv(gym.Env):
         self.n_qnodes = 5  # number of qnodes
         self.qtasks = []
         self.qnodes = []
+        self.serviced_qtasks = []
         self.mode = mode
         self.obs_dim = 4 + self.n_qnodes * 3
         self.observation_space = Box(
@@ -217,6 +218,10 @@ class QSimPyEnv(gym.Env):
             for qid, qname in zip(qnode_ids, qnode_names)
         ]
 
+        # Manually assign the name attribute to each node after creation
+        for node, name in zip(self.qnodes, qnode_names):
+            node.name = name
+        
         # Create a Broker
         self.broker = Broker(self.qsp_env, self.qnodes, self.mode)
 
@@ -322,6 +327,8 @@ class QSimPyEnv(gym.Env):
             'rescheduling_count': qtask.rescheduling_count,
         })
         
+        self.serviced_qtasks.append(qtask)
+        
         # The reward is based on the total time spent by the task in the system
         total_time_in_system = delay_time + waiting_time + execution_time
 
@@ -338,7 +345,8 @@ class QSimPyEnv(gym.Env):
         self.setup_quantum_resources()
         self.results = []
         self.round = 1
-
+        self.serviced_qtasks = [] 
+        
         self.generate_qtasks()
         self.current_obs = self._get_obs().astype(np.float32)
         info = {}

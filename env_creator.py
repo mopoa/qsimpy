@@ -30,5 +30,5 @@ def qsimpy_env_creator(env_config):
         if reward_filter == "scale_2x":
             env = ScaleQSimPyEnv(env, scale=env_config.pop("reward_scale", 2))
             
-    for i in range(10) : print(type(env))
+    # for i in range(10) : print(type(env))
     return env
