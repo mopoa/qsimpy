@@ -30,9 +30,10 @@ class HeuristicSolutions:
 
         self.results = []
         # Reset the subset of QTasks 
-        self.env.round = 1
+        self.env.unwrapped.round = 1
 
-        for _ in range(self.num_episodes):
+        # **FIX:** Use an episode counter to provide a unique seed for each episode
+        for episode_num in range(self.num_episodes):
 
             # Initialize the temporary array to store the results of the QTasks execution for each episode
             arr_temp = {
@@ -41,10 +42,11 @@ class HeuristicSolutions:
             }
             terminated = False
 
-            # Reset the environment and setup the quantum resources
-            self.env.reset()
-            self.env.setup_quantum_resources()
+            # **FIX:** Pass the unique seed here to generate a new problem for each episode
+            self.env.reset(seed=episode_num)
+            self.env.unwrapped.setup_quantum_resources()
             self.rr_index = 0
+            self.greedy_index = 0
 
             while not terminated:
                 # Get the action with the given control
@@ -57,25 +59,27 @@ class HeuristicSolutions:
                 elif control == "greedy_error":
                     action = self.greedy_error(self.greedy_index)
                 
+                # Save the task object before it gets processed by the step function
+                task_to_be_scheduled = self.env.unwrapped.current_qtask
+                
                 obs, reward, terminated, done, info = self.env.step(action)
                 
-                # If the QNode is busy or not satisfied, move to the next priority QNode
-                self.greedy_index += 1
+                # If the action was invalid (e.g., node busy), increment the index for greedy strategies and try again
+                if reward < 0: # A reward of -0.1 indicates a penalty for an invalid action
+                    self.greedy_index += 1
+                
+                # If the action was valid and the task was scheduled
                 if reward > 0:
-                    """Get the results of the QTask execution
-
-                    Values:
-                        - Total Completion Time: waiting_time + execution_time
-                        - Rescheduling Count: rescheduling_count
-                    """
-                    # Reset priority index of Greedy solution if QTasks are satisfied
+                    # Reset priority index of Greedy solution for the next task
                     self.greedy_index = 0
 
-                    arr_temp["total_completion_time"] += info["scheduled_qtask"].waiting_time + info["scheduled_qtask"].execution_time
-                    arr_temp["rescheduling_count"] += info["scheduled_qtask"].rescheduling_count
+                    # Use the saved task object to access its properties
+                    arr_temp["total_completion_time"] += task_to_be_scheduled.waiting_time + task_to_be_scheduled.execution_time
+                    arr_temp["rescheduling_count"] += task_to_be_scheduled.rescheduling_count
+
             sys.stdout.write("\033[F\033[K")
-            print(f"progress: {len(self.results)}%")
-            self.env.qsp_env.run()
+            print(f"[{control}] progress: {episode_num + 1}/{self.num_episodes}")
+            self.env.unwrapped.qsp_env.run()
             # Final results of the episode
             self.results.append(arr_temp)
 
@@ -84,8 +88,10 @@ class HeuristicSolutions:
                 
     def greedy(self, greedy_index):
         # Sort the QNodes based on the next available time (or waiting time) and select the QNode with the smallest waiting time
-        greedy_strategy = sorted(self.env.qnodes, key=lambda x: x.next_available_time)
-        return self.env.qnodes.index(greedy_strategy[greedy_index])
+        greedy_strategy = sorted(self.env.unwrapped.qnodes, key=lambda x: x.next_available_time)
+        # Prevent index error if all nodes are invalid
+        safe_index = min(greedy_index, len(greedy_strategy) - 1)
+        return self.env.unwrapped.qnodes.index(greedy_strategy[safe_index])
 
     def random(self):
         # Randomly select a QNode
@@ -94,16 +100,16 @@ class HeuristicSolutions:
     
     def round_robin(self):
         # Select the QNode based on the Round Robin index
-        action = self.rr_index % self.env.n_qnodes
+        action = self.rr_index % self.env.unwrapped.n_qnodes
         self.rr_index += 1
         return action
     
     def greedy_error(self, greedy_index, g_error="Readout_assignment_error"):
-        # Sort the QNodes based on the next available time (or waiting time) and select the QNode with the 
-        # smallest waiting time and smallest error (default is readout_error) in the qnode
-    
-        greedy_strategy = sorted(self.env.qnodes, key=lambda x: (x.next_available_time, x.error[g_error]))
-        return self.env.qnodes.index(greedy_strategy[greedy_index])
+        # Sort the QNodes based on the next available time and then by error
+        greedy_strategy = sorted(self.env.unwrapped.qnodes, key=lambda x: (x.next_available_time, x.error[g_error]))
+        # Prevent index error if all nodes are invalid
+        safe_index = min(greedy_index, len(greedy_strategy) - 1)
+        return self.env.unwrapped.qnodes.index(greedy_strategy[safe_index])
 
     def _save_to_csv(self, control) -> None:
         """
@@ -132,6 +138,7 @@ class HeuristicSolutions:
         """
         Plot the results of the episodes.
         """
+        plt.figure(figsize=(12, 7))
         for path in paths:
             df1 = pd.read_csv(path['path'])
 
@@ -141,7 +148,9 @@ class HeuristicSolutions:
         
         plt.ylabel('Total Completion Time')
         plt.xlabel('Evaluation Episode')
-        plt.legend(loc=2)
+        plt.title('Heuristic Method Performance Comparison')
+        plt.legend(loc='best')
+        plt.grid(True)
         plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(10))
         plt.show()
 
@@ -149,10 +158,11 @@ class HeuristicSolutions:
         """
         Summarize the results of the episodes.
         """
-        print("Results Summary for" + label + "solution:")
+        print("\n--- Results Summary for " + label + " solution ---")
         print(f"Number of Episodes: {self.num_episodes}")
-        print(f"Total Completion Time: {sum(values['Total Completion Time'])}")
-        print(f"Average Rescheduling Count: {sum(values['Rescheduling Count']) / self.num_episodes}")
+        print(f"Average Total Completion Time: {sum(values['Total Completion Time']) / self.num_episodes:.2f}")
+        print(f"Average Rescheduling Count: {sum(values['Rescheduling Count']) / self.num_episodes:.2f}")
+        print("------------------------------------------")
 
 
 if __name__ == "__main__":
@@ -170,33 +180,31 @@ if __name__ == "__main__":
     heuristics = HeuristicSolutions(env, num_episodes=100)
     methods = ['greedy','random','round_robin','greedy_error']
     processes = [Process(target=heuristics.run , args=(m,)) for m in methods]
-    for i in range(len(methods)) : processes[i].start()
-    for i in range(len(methods)) : processes[i].join()
+    for p in processes:
+        p.start()
+    for p in processes:
+        p.join()
     print("All Processes are done!!")
-    # heuristics.run("greedy")
-    # heuristics.run("random")
-    # heuristics.run("round_robin")
-    # heuristics.run("greedy_error")
 
     # Plot the results
     paths = [
         {
-            "label": "random",
+            "label": "Random",
             "path": "./results/heuristics/random.csv",
             "color": "red"
         },
         {
-            "label": "round robin",
+            "label": "Round Robin",
             "path": "./results/heuristics/round_robin.csv",
             "color": "blue"
         },
         {
-            "label": "greedy",
+            "label": "Greedy",
             "path": "./results/heuristics/greedy.csv",
             "color": "black"
         },
         {
-            "label": "greedy_error",
+            "label": "Greedy + Error",
             "path": "./results/heuristics/greedy_error.csv",
             "color": "green"
         },
