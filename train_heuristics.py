@@ -6,9 +6,9 @@ import csv
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-from qsimpy import TaskStatus # Import TaskStatus
-import numpy as np # Import numpy
-import random # Import random for Random Best-N
+from qsimpy import TaskStatus 
+import numpy as np 
+import random 
 
 class HeuristicSolutions:
     def __init__(self, env, num_episodes=100):
@@ -23,7 +23,6 @@ class HeuristicSolutions:
         self.wrr_index = 0
         # --- END NEW ---
 
-    # --- NEW: Helper method to initialize algorithms for each episode ---
     def _initialize_episode_strategies(self):
         """Initializes/resets strategies that require setup at the start of an episode."""
         # Create the weighted list for Weighted Round Robin (WRR) based on CLOPS
@@ -40,8 +39,6 @@ class HeuristicSolutions:
         
         random.shuffle(self.wrr_list) # Shuffle to distribute nodes evenly
         self.wrr_index = 0
-    # --- END NEW ---
-
 
     def run(self, control):
         """
@@ -270,6 +267,7 @@ class HeuristicSolutions:
     
     def _collect_and_summarize_metrics(self, control):
         serviced_tasks = self.env.unwrapped.serviced_qtasks
+        serviced_tasks = self.env
         qnodes = self.env.unwrapped.qnodes
         total_sim_time = self.env.unwrapped.qsp_env.now
         if not serviced_tasks:
